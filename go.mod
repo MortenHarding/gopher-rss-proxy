@@ -1,3 +1,3 @@
-module github.com/example/rss-gopher-proxy
+module github.com/example/gopher-rss-proxy
 
 go 1.21
