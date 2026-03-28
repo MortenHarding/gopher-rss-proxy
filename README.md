@@ -95,14 +95,6 @@ Article text       →   0/<https://...feed.rss>/<item-index>
 - No caching — every Gopher request fetches the feed live
 - HTTPS feeds only via Go's default TLS stack (no custom CA support)
 
-
-To build and run:
-go build -o rss-gopher-proxy .
-./rss-gopher-proxy -host localhost -port 7070
-Then connect with any Gopher client:
-bash# lynx
-lynx gopher://localhost:7070
-
 # view a specific feed directly
 lynx "gopher://localhost:7070/1/https://news.ycombinator.com/rss"
 
