@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -51,12 +53,81 @@ const (
 // ─── Server ───────────────────────────────────────────────────────────────────
 
 type GopherServer struct {
-	host string
-	port int
+	host       string
+	port       int
+	feedConfig *FeedConfig
+	accessLog  *AccessLogger
 }
 
-func NewGopherServer(host string, port int) *GopherServer {
-	return &GopherServer{host: host, port: port}
+// ─── Feed Configuration ───────────────────────────────────────────────────────
+
+type FeedEntry struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
+type FeedSection struct {
+	Title string      `json:"title"`
+	Feeds []FeedEntry `json:"feeds"`
+}
+
+type FeedConfig struct {
+	Sections []FeedSection `json:"sections"`
+}
+
+// ─── Access Logger ────────────────────────────────────────────────────────────
+
+type AccessLogger struct {
+	logger *log.Logger
+}
+
+type LogEntry struct {
+	Timestamp time.Time
+	IP        string
+	ItemType  string // "welcome", "dir", "text", "error"
+	Selector  string
+	ElapsedMS int64
+	Status    string // "ok" or "error: <reason>"
+}
+
+func NewAccessLogger(path string) (*AccessLogger, error) {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("opening access log %q: %w", path, err)
+	}
+	return &AccessLogger{
+		logger: log.New(f, "", 0),
+	}, nil
+}
+
+func (l *AccessLogger) Log(e LogEntry) {
+	if l == nil {
+		return
+	}
+	l.logger.Printf("%s\t%s\t%-7s\t%s\t%dms\t%s",
+		e.Timestamp.UTC().Format(time.RFC3339),
+		e.IP,
+		e.ItemType,
+		e.Selector,
+		e.ElapsedMS,
+		e.Status,
+	)
+}
+
+func loadFeedConfig(path string) (*FeedConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading feed config %q: %w", path, err)
+	}
+	var cfg FeedConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parsing feed config %q: %w", path, err)
+	}
+	return &cfg, nil
+}
+
+func NewGopherServer(host string, port int, cfg *FeedConfig, al *AccessLogger) *GopherServer {
+	return &GopherServer{host: host, port: port, feedConfig: cfg, accessLog: al}
 }
 
 func (s *GopherServer) ListenAndServe() error {
@@ -81,7 +152,6 @@ func (s *GopherServer) handleConn(conn net.Conn) {
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(30 * time.Second))
 
-	// Read selector line (terminated by CR LF or LF)
 	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
 	if err != nil && err != io.EOF {
@@ -91,12 +161,32 @@ func (s *GopherServer) handleConn(conn net.Conn) {
 	selector := strings.TrimRight(string(buf[:n]), "\r\n")
 	log.Printf("request: %q", selector)
 
-	response, err := s.route(selector)
-	if err != nil {
-		log.Printf("route error: %v", err)
-		response = gopherError(err.Error())
+	start := time.Now()
+	response, routeErr := s.route(selector)
+	elapsed := time.Since(start).Milliseconds()
+
+	if routeErr != nil {
+		log.Printf("route error: %v", routeErr)
+		response = gopherError(routeErr.Error())
 	}
 	conn.Write([]byte(response))
+
+	// ── access log ──────────────────────────────────────────────
+	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	entry := LogEntry{
+		Timestamp: time.Now().UTC(),
+		IP:        ip,
+		ItemType:  itemType(selector),
+		Selector:  selector,
+		ElapsedMS: elapsed,
+		Status:    "ok",
+	}
+	if routeErr != nil {
+		entry.Status = "error: " + routeErr.Error()
+		entry.ItemType = "error"
+	}
+	s.accessLog.Log(entry)
+	// ────────────────────────────────────────────────────────────
 }
 
 // route dispatches based on the selector path.
@@ -212,19 +302,21 @@ func (s *GopherServer) welcomeMenu() string {
 	var b strings.Builder
 	writeInfo(&b, "RSS -> Gopher Proxy")
 	writeInfo(&b, strings.Repeat("-", 40))
-	writeInfo(&b, "")
-	writeInfo(&b, "International News feeds:")
-	writeDir(&b, "CNN - Top Stories", fmt.Sprintf("/1/http://rss.cnn.com/rss/cnn_topstories.rss"), s.host, s.port)
-	writeDir(&b, "CNN - World News", fmt.Sprintf("/1/http://rss.cnn.com/rss/cnn_world.rss"), s.host, s.port)
-	writeDir(&b, "CNN - US News", fmt.Sprintf("/1/http://rss.cnn.com/rss/cnn_us.rss"), s.host, s.port)
-	writeDir(&b, "CNN - Latest News", fmt.Sprintf("/1/http://rss.cnn.com/rss/cnn_latest.rss"), s.host, s.port)
-	writeDir(&b, "NYT - Latest News", fmt.Sprintf("/1/https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"), s.host, s.port)
-	writeDir(&b, "BBC - Latest News", fmt.Sprintf("/1/http://feeds.bbci.co.uk/news/rss.xml"), s.host, s.port)
-	writeInfo(&b, "")
-	writeInfo(&b, "Danish News feeds:")
-	writeDir(&b, "DR - Latest News", fmt.Sprintf("/1/https://www.dr.dk/nyheder/service/feeds/senestenyt"), s.host, s.port)
-	writeDir(&b, "DR - Domestic News", fmt.Sprintf("/1/https://www.dr.dk/nyheder/service/feeds/indland"), s.host, s.port)
-	writeDir(&b, "DR - International News", fmt.Sprintf("/1/https://www.dr.dk/nyheder/service/feeds/udland"), s.host, s.port)
+
+	if s.feedConfig == nil || len(s.feedConfig.Sections) == 0 {
+		writeInfo(&b, "")
+		writeInfo(&b, "(no feeds configured - see feeds.json)")
+	} else {
+		for _, section := range s.feedConfig.Sections {
+			writeInfo(&b, "")
+			writeInfo(&b, section.Title+":")
+			for _, feed := range section.Feeds {
+				selector := fmt.Sprintf("/1/%s", feed.URL)
+				writeDir(&b, feed.Label, selector, s.host, s.port)
+			}
+		}
+	}
+
 	writeInfo(&b, "")
 	writeInfo(&b, "To view an RSS feed, connect to:")
 	writeInfo(&b, fmt.Sprintf("  gopher://%s:%d/1/<feed-url>", s.host, s.port))
@@ -769,14 +861,62 @@ func min(a, b int) int {
 	return b
 }
 
+// itemType infers a human-readable request type from the selector.
+func itemType(selector string) string {
+	if selector == "" || selector == "/" {
+		return "welcome"
+	}
+	// Bare feed URL (type digit stripped by client)
+	if strings.HasPrefix(selector, "http://") || strings.HasPrefix(selector, "https://") {
+		if _, _, ok := splitItemSelector(selector); ok {
+			return "text"
+		}
+		return "dir"
+	}
+	// Full selector: "/X/<payload>"
+	if len(selector) >= 3 && selector[0] == '/' && selector[2] == '/' {
+		switch selector[1] {
+		case '0':
+			return "text"
+		case '1':
+			return "dir"
+		}
+	}
+	// Leading slash, type stripped: "/https://..."
+	stripped := strings.TrimPrefix(selector, "/")
+	if strings.HasPrefix(stripped, "http://") || strings.HasPrefix(stripped, "https://") {
+		if _, _, ok := splitItemSelector(stripped); ok {
+			return "text"
+		}
+		return "dir"
+	}
+	return "unknown"
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 func main() {
 	host := flag.String("host", "localhost", "hostname / IP to advertise in Gopher menus")
 	port := flag.Int("port", 7070, "TCP port to listen on")
+	feeds := flag.String("feeds", "feeds.json", "path to JSON feed config file")
+	logFile := flag.String("access-log", "access.log", "path to access log file (empty to disable)")
 	flag.Parse()
 
-	srv := NewGopherServer(*host, *port)
+	cfg, err := loadFeedConfig(*feeds)
+	if err != nil {
+		log.Fatalf("feed config error: %v", err)
+	}
+
+	var al *AccessLogger
+	if *logFile != "" {
+		al, err = NewAccessLogger(*logFile)
+		if err != nil {
+			log.Fatalf("access log error: %v", err)
+		}
+		log.Printf("Access log: %s", *logFile)
+	}
+
+	srv := NewGopherServer(*host, *port, cfg, al)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
