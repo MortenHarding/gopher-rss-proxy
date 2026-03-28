@@ -11,4 +11,6 @@ RUN apk --update add git \
 
 WORKDIR /go
 
+COPY feeds.json /go/feeds.json
+
 ENTRYPOINT ["./rssproxy"]
