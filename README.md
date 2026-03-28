@@ -6,7 +6,7 @@ and the classic Gopher protocol (RFC 1436).
 ## How it works
 
 ```
-Gopher client  ──selector──►  rss-gopher-proxy  ──HTTP GET──►  RSS feed
+Gopher client  ──selector──►  gopher-rss-proxy  ──HTTP GET──►  RSS feed
                ◄──menu/text──                   ◄──XML─────────
 ```
 
@@ -19,7 +19,7 @@ Gopher client  ──selector──►  rss-gopher-proxy  ──HTTP GET──�
 ## Build
 
 ```bash
-go build -o rss-gopher-proxy .
+go build -o gopher-rss-proxy .
 ```
 
 Or run directly:
@@ -31,7 +31,7 @@ go run main.go
 ## Usage
 
 ```
-./rss-gopher-proxy [flags]
+./gopher-rss-proxy [flags]
 
   -host string   Hostname/IP advertised in Gopher menus (default "localhost")
   -port int      TCP port to listen on (default 7070)
@@ -41,10 +41,10 @@ go run main.go
 
 ```bash
 # Start on the default port
-./rss-gopher-proxy
+./gopher-rss-proxy
 
 # Start on port 70 (standard Gopher port — needs root or CAP_NET_BIND_SERVICE)
-./rss-gopher-proxy -port 70 -host gopher.example.com
+./gopher-rss-proxy -port 70 -host gopher.example.com
 ```
 
 ## Connecting
