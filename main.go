@@ -302,7 +302,7 @@ func splitItemSelector(s string) (feedURL string, index int, ok bool) {
 func (s *GopherServer) welcomeMenu() string {
 	var b strings.Builder
 	writeInfo(&b, "RSS -> Gopher Proxy")
-	writeInfo(&b, strings.Repeat("-", 50))
+	writeInfo(&b, strings.Repeat("-", 32))
 
 	if s.feedConfig == nil || len(s.feedConfig.Sections) == 0 {
 		writeInfo(&b, "")
@@ -335,7 +335,7 @@ func (s *GopherServer) feedMenu(feedURL string) (string, error) {
 
 	var b strings.Builder
 	writeInfo(&b, feed.Channel.Title)
-	writeInfo(&b, strings.Repeat("-", 60))
+	writeInfo(&b, strings.Repeat("-", 32))
 	if feed.Channel.Description != "" {
 		writeInfo(&b, stripTags(feed.Channel.Description))
 	}
