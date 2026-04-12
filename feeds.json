@@ -3,7 +3,6 @@
     {
       "title": "Danish",
       "feeds": [
-        { "label": "Berlingske", "url": "https://www.berlingske.dk/content/rss" },
         { "label": "DR - Latest", "url": "https://www.dr.dk/nyheder/service/feeds/senestenyt" },
         { "label": "DR - Domestic", "url": "https://www.dr.dk/nyheder/service/feeds/indland" },
         { "label": "DR - International", "url": "https://www.dr.dk/nyheder/service/feeds/udland" }

@@ -302,7 +302,7 @@ func splitItemSelector(s string) (feedURL string, index int, ok bool) {
 func (s *GopherServer) welcomeMenu() string {
 	var b strings.Builder
 	writeInfo(&b, "RSS -> Gopher Proxy")
-	writeInfo(&b, strings.Repeat("-", 40))
+	writeInfo(&b, strings.Repeat("-", 50))
 
 	if s.feedConfig == nil || len(s.feedConfig.Sections) == 0 {
 		writeInfo(&b, "")
@@ -340,15 +340,13 @@ func (s *GopherServer) feedMenu(feedURL string) (string, error) {
 		writeInfo(&b, stripTags(feed.Channel.Description))
 	}
 	writeInfo(&b, "")
-	writeInfo(&b, fmt.Sprintf("%d items", len(feed.Channel.Items)))
-	writeInfo(&b, "")
 
 	for i, item := range feed.Channel.Items {
 
 		// Show pub date as info line if available
 		if item.PubDate != "" {
 			if t, err := parseDate(item.PubDate); err == nil {
-				writeInfo(&b, "----  "+t.Format("Mon, 02 Jan 2006 15:04")+"  ----")
+				writeInfo(&b, strings.Repeat("-", 3)+"  "+t.Format("Mon, 02 Jan 2006 15:04")+"  "+strings.Repeat("-", 3))
 			}
 		}
 
@@ -397,22 +395,7 @@ func (s *GopherServer) itemText(feedURL string, index int) (string, error) {
 	// Header
 	title := cleanText(item.Title)
 	b.WriteString(title + "\n")
-	b.WriteString(strings.Repeat("=", min(len(title), 72)) + "\n")
-	b.WriteString("\n")
-
-	if item.Author != "" {
-		b.WriteString("Author:  " + cleanText(item.Author) + "\n")
-	}
-	if item.PubDate != "" {
-		if t, err := parseDate(item.PubDate); err == nil {
-			b.WriteString("Date:    " + t.Format("Monday, 02 January 2006 15:04 MST") + "\n")
-		} else {
-			b.WriteString("Date:    " + item.PubDate + "\n")
-		}
-	}
-
-	b.WriteString("\n")
-	b.WriteString(strings.Repeat("-", 72) + "\n")
+	b.WriteString(strings.Repeat("-", min(len(title), 67)) + "\n")
 	b.WriteString("\n")
 
 	// Try to fetch the full article from the link first.
@@ -443,14 +426,14 @@ func (s *GopherServer) itemText(feedURL string, index int) (string, error) {
 
 	// htmlToText and wordWrap both use plain \n internally.
 	body = htmlToText(body)
-	body = wordWrap(body, 72)
+	body = wordWrap(body, 67)
 
 	if sourceNote != "" {
 		b.WriteString(sourceNote)
 	}
 	b.WriteString(body)
 	b.WriteString("\n\n")
-	b.WriteString(strings.Repeat("-", 72) + "\n")
+	b.WriteString(strings.Repeat("-", 67) + "\n")
 	b.WriteString("[ End of article - " + title + " ]\n")
 
 	// Single normalisation pass: replace every \n (that isn't already \r\n)
@@ -756,8 +739,8 @@ func htmlToText(h string) string {
 		{"</h4>", "\n\n"}, {"</h5>", "\n\n"}, {"</h6>", "\n\n"},
 		{"<li>", "* "}, {"<ul>", "\n"}, {"</ul>", "\n"},
 		{"<ol>", "\n"}, {"</ol>", "\n"},
-		{"<hr>", "\n" + strings.Repeat("-", 72) + "\n"},
-		{"<hr/>", "\n" + strings.Repeat("-", 72) + "\n"},
+		{"<hr>", "\n" + strings.Repeat("-", 67) + "\n"},
+		{"<hr/>", "\n" + strings.Repeat("-", 67) + "\n"},
 	}
 	lower := strings.ToLower(h)
 	result := h
