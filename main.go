@@ -48,6 +48,7 @@ const (
 	TypeDirectory = '1' // directory / menu
 	TypeInfo      = 'i' // informational message (no selector)
 	TypeError     = '3' // error
+	TypeURL       = 'h' // URL
 )
 
 // ─── Server ───────────────────────────────────────────────────────────────────
@@ -343,6 +344,14 @@ func (s *GopherServer) feedMenu(feedURL string) (string, error) {
 	writeInfo(&b, "")
 
 	for i, item := range feed.Channel.Items {
+
+		// Show pub date as info line if available
+		if item.PubDate != "" {
+			if t, err := parseDate(item.PubDate); err == nil {
+				writeInfo(&b, "----  "+t.Format("Mon, 02 Jan 2006 15:04")+"  ----")
+			}
+		}
+
 		title := cleanText(item.Title)
 		if title == "" {
 			title = fmt.Sprintf("Item %d", i+1)
@@ -354,11 +363,9 @@ func (s *GopherServer) feedMenu(feedURL string) (string, error) {
 		selector := fmt.Sprintf("/0/%s/%d", feedURL, i)
 		writeText(&b, title, selector, s.host, s.port)
 
-		// Show pub date as info line if available
-		if item.PubDate != "" {
-			if t, err := parseDate(item.PubDate); err == nil {
-				writeInfo(&b, "  "+t.Format("Mon, 02 Jan 2006 15:04"))
-			}
+		// Show link to main article
+		if item.Link != "" {
+			writeURL(&b, "Article ->", item.Link, s.host, s.port)
 		}
 	}
 
@@ -403,9 +410,7 @@ func (s *GopherServer) itemText(feedURL string, index int) (string, error) {
 			b.WriteString("Date:    " + item.PubDate + "\n")
 		}
 	}
-	if item.Link != "" {
-		b.WriteString("Link:    " + item.Link + "\n")
-	}
+
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat("-", 72) + "\n")
 	b.WriteString("\n")
@@ -729,6 +734,10 @@ func writeDir(b *strings.Builder, display, selector, host string, port int) {
 
 func writeText(b *strings.Builder, display, selector, host string, port int) {
 	b.WriteString(gopherLine(TypeText, display, selector, host, port))
+}
+
+func writeURL(b *strings.Builder, display, selector, host string, port int) {
+	b.WriteString(gopherLine(TypeURL, display, "URL:"+selector, host, port))
 }
 
 func gopherError(msg string) string {

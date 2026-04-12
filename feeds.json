@@ -1,22 +1,35 @@
 {
   "sections": [
     {
-      "title": "International News feeds",
+      "title": "Danish",
       "feeds": [
-        { "label": "CNN - Top Stories", "url": "http://rss.cnn.com/rss/cnn_topstories.rss" },
-        { "label": "CNN - World News", "url": "http://rss.cnn.com/rss/cnn_world.rss" },
-        { "label": "CNN - US News", "url": "http://rss.cnn.com/rss/cnn_us.rss" },
-        { "label": "CNN - Latest News", "url": "http://rss.cnn.com/rss/cnn_latest.rss" },
-        { "label": "NYT - Latest News", "url": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml" },
-        { "label": "BBC - Latest News",  "url": "http://feeds.bbci.co.uk/news/rss.xml" }
+        { "label": "Berlingske", "url": "https://www.berlingske.dk/content/rss" },
+        { "label": "DR - Latest", "url": "https://www.dr.dk/nyheder/service/feeds/senestenyt" },
+        { "label": "DR - Domestic", "url": "https://www.dr.dk/nyheder/service/feeds/indland" },
+        { "label": "DR - International", "url": "https://www.dr.dk/nyheder/service/feeds/udland" }
       ]
     },
     {
-      "title": "Danish News feeds",
+      "title": "International",
       "feeds": [
-        { "label": "DR - Latest News", "url": "https://www.dr.dk/nyheder/service/feeds/senestenyt" },
-        { "label": "DR - Domestic News", "url": "https://www.dr.dk/nyheder/service/feeds/indland" },
-        { "label": "DR - International News", "url": "https://www.dr.dk/nyheder/service/feeds/udland" }
+        { "label": "The Guardian",  "url": "https://www.theguardian.com/world/rss" },
+        { "label": "Forbes",  "url": "https://www.forbes.com/business/feed/" },
+        { "label": "BBC",  "url": "https://feeds.bbci.co.uk/news/world/rss.xml" }
+      ]
+    },
+    {
+      "title": "NASA",
+      "feeds": [
+        { "label": "Releases", "url": "https://www.nasa.gov/news-release/feed/" },
+        { "label": "Artemis", "url": "https://www.nasa.gov/missions/artemis/feed/" }
+      ]
+    },
+    {
+      "title": "Technology",
+      "feeds": [
+        { "label": "MacRumors", "url": "https://forums.macrumors.com/external.php?type=RSS2" },
+        { "label": "Engadget", "url": "https://www.engadget.com/rss.xml" },
+        { "label": "Wired", "url": "https://www.wired.com/feed/rss" }
       ]
     }
   ]
