@@ -13,7 +13,8 @@
       "feeds": [
         { "label": "The Guardian",  "url": "https://www.theguardian.com/world/rss" },
         { "label": "Forbes",  "url": "https://www.forbes.com/business/feed/" },
-        { "label": "BBC",  "url": "https://feeds.bbci.co.uk/news/world/rss.xml" }
+        { "label": "BBC",  "url": "https://feeds.bbci.co.uk/news/world/rss.xml" },
+        { "label": "CNN", "selector": "gopher://codevoid.de:70/1/cnn" }
       ]
     },
     {

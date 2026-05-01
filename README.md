@@ -70,6 +70,48 @@ Feed menu          →   1/<https://...feed.rss>
 Article text       →   0/<https://...feed.rss>/<item-index>
 ```
 
+## Feed configuration (`feeds.json`)
+
+Feeds are organised into named sections. Each entry is either an **RSS feed**
+(proxied locally) or a **native Gopher selector** (linked directly to a remote
+Gopher server). The two fields are mutually exclusive — `selector` takes
+precedence if both are present.
+
+### RSS feed entry
+
+```json
+{ "label": "Hacker News", "url": "https://news.ycombinator.com/rss" }
+```
+
+The proxy fetches the RSS URL, parses it, and serves the result as a Gopher
+menu on the local server.
+
+### Native Gopher selector entry
+
+```json
+{ "label": "CNN (codevoid.de)", "selector": "gopher://codevoid.de:70/1/cnn" }
+```
+
+The welcome menu emits a cross-host Gopher directory line pointing directly at
+the remote server. The client connects there itself — the proxy is not
+involved in the transfer. The port defaults to `70` if omitted.
+
+### Example `feeds.json`
+
+```json
+{
+  "sections": [
+    {
+      "title": "International",
+      "feeds": [
+        { "label": "BBC",             "url": "https://feeds.bbci.co.uk/news/world/rss.xml" },
+        { "label": "CNN (codevoid)",  "selector": "gopher://codevoid.de:70/1/cnn" }
+      ]
+    }
+  ]
+}
+```
+
 ## Gopher item types used
 
 | Type | Meaning      | Usage                         |
@@ -88,15 +130,10 @@ Article text       →   0/<https://...feed.rss>/<item-index>
 - Tries multiple date formats common in the wild
 - 15-second HTTP timeout; caps feed bodies at 10 MB
 - Handles multiple concurrent Gopher clients via goroutines
+- Supports native Gopher selector entries in `feeds.json` alongside RSS feeds
 
 ## Limitations
 
 - RSS 2.0 only (Atom feeds not yet supported)
 - No caching — every Gopher request fetches the feed live
 - HTTPS feeds only via Go's default TLS stack (no custom CA support)
-
-# view a specific feed directly
-lynx "gopher://localhost:7070/1/https://news.ycombinator.com/rss"
-
-# or with curl
-curl "gopher://localhost:7070/1/https://lobste.rs/rss"

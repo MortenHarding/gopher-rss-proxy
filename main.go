@@ -63,8 +63,9 @@ type GopherServer struct {
 // ─── Feed Configuration ───────────────────────────────────────────────────────
 
 type FeedEntry struct {
-	Label string `json:"label"`
-	URL   string `json:"url"`
+	Label    string `json:"label"`
+	URL      string `json:"url"`      // RSS feed URL (mutually exclusive with Selector)
+	Selector string `json:"selector"` // Raw gopher:// URL, e.g. "gopher://codevoid.de:70/1/cnn"
 }
 
 type FeedSection struct {
@@ -297,6 +298,50 @@ func splitItemSelector(s string) (feedURL string, index int, ok bool) {
 	return feedURL, n, true
 }
 
+// ─── Gopher URL Parsing ───────────────────────────────────────────────────────
+
+// parseGopherURL parses a gopher:// URL into its host, port, item type, and
+// selector components.
+//
+// In the Gopher URL scheme (RFC 4266) the path is "/<typebyte>/<selector>".
+// The type byte is part of the URL path but must NOT be included in the
+// selector field of a menu line — gopherLine() already encodes the type as
+// the leading character of each line.
+//
+// Examples:
+//
+//	"gopher://codevoid.de:70/1/cnn"  -> "codevoid.de", 70, '1', "/cnn", nil
+//	"gopher://codevoid.de/1/cnn"     -> "codevoid.de", 70, '1', "/cnn", nil
+//	"gopher://codevoid.de:70/"       -> "codevoid.de", 70, '1', "",     nil
+func parseGopherURL(raw string) (host string, port int, gopherType byte, selector string, err error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", 0, 0, "", fmt.Errorf("invalid gopher URL %q: %w", raw, err)
+	}
+	if u.Scheme != "gopher" {
+		return "", 0, 0, "", fmt.Errorf("expected gopher:// scheme, got %q", u.Scheme)
+	}
+	host = u.Hostname()
+	if host == "" {
+		return "", 0, 0, "", fmt.Errorf("missing host in gopher URL %q", raw)
+	}
+	port = 70 // default Gopher port
+	if ps := u.Port(); ps != "" {
+		if _, scanErr := fmt.Sscanf(ps, "%d", &port); scanErr != nil {
+			return "", 0, 0, "", fmt.Errorf("invalid port %q in gopher URL %q", ps, raw)
+		}
+	}
+	// Path is "/<typebyte>/<selector>" per RFC 4266.
+	// Strip the leading "/" and extract the type byte.
+	gopherType = TypeDirectory // default to '1'
+	path := strings.TrimPrefix(u.Path, "/")
+	if len(path) >= 1 {
+		gopherType = path[0]
+		selector = path[1:] // everything after the type byte (may start with '/')
+	}
+	return host, port, gopherType, selector, nil
+}
+
 // ─── Welcome Menu ─────────────────────────────────────────────────────────────
 
 func (s *GopherServer) welcomeMenu() string {
@@ -312,8 +357,17 @@ func (s *GopherServer) welcomeMenu() string {
 			writeInfo(&b, "")
 			writeInfo(&b, section.Title+":")
 			for _, feed := range section.Feeds {
-				selector := fmt.Sprintf("/1/%s", feed.URL)
-				writeDir(&b, feed.Label, selector, s.host, s.port)
+				if feed.Selector != "" {
+					// External gopher selector — parse host/port/type/path from the URL.
+					if h, p, t, sel, err := parseGopherURL(feed.Selector); err == nil {
+						b.WriteString(gopherLine(t, feed.Label, sel, h, p))
+					} else {
+						writeInfo(&b, fmt.Sprintf("(bad selector for %q: %v)", feed.Label, err))
+					}
+				} else {
+					selector := fmt.Sprintf("/1/%s", feed.URL)
+					writeDir(&b, feed.Label, selector, s.host, s.port)
+				}
 			}
 		}
 	}
